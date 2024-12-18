@@ -61,6 +61,7 @@ def get_balance(api_key):
                 return round(float(balance_data['balance']), 2)
         else:
             print("ไม่สามารถเชื่อมต่อกับ API เพื่อดึงยอดเงินได้ ❌")
+            exit()
     except requests.RequestException as e:
         print(f"เกิดข้อผิดพลาดในการเชื่อมต่อ: {e} ❌")
 
