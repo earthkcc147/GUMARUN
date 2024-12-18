@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 # โหลดค่าจากไฟล์ .env
 load_dotenv()
 
+user_api_key = os.getenv("API_KEY")
+user_username = os.getenv("USERNAME")
+user_password = os.getenv("PASSWORD")
+
 # รับข้อมูล username ที่ต้องการล็อกอิน
 username_input = input("กรุณากรอก Username: ")
 password_input = input("กรุณากรอก Password: ")
