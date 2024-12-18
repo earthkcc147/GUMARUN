@@ -6,11 +6,30 @@ from dotenv import load_dotenv
 # โหลดค่าจากไฟล์ .env
 load_dotenv()
 
-# อ่านค่าจาก .env
-API_URL = os.getenv("API_URL")  # อ่าน URL ของ API
-PRODUCT_DATA_JSON = os.getenv("PRODUCT_DATA")  # อ่านค่า product data JSON
+# รับข้อมูล username ที่ต้องการล็อกอิน
+username_input = input("กรุณากรอก Username: ")
+password_input = input("กรุณากรอก Password: ")
 
-# แปลงข้อมูล JSON จาก string เป็น dictionary
+# สร้างคีย์ที่จะใช้ในการดึงข้อมูลจาก .env
+user_api_key = os.getenv(f"USER_{username_input}_API_KEY")
+user_username = os.getenv(f"USER_{username_input}_USERNAME")
+user_password = os.getenv(f"USER_{username_input}_PASSWORD")
+
+# ตรวจสอบว่า .env มีข้อมูลของผู้ใช้ที่กรอกหรือไม่
+if user_api_key is None or user_username is None or user_password is None:
+    print("ไม่พบข้อมูลของผู้ใช้ใน .env ❌")
+    exit()
+
+# ตรวจสอบชื่อผู้ใช้และรหัสผ่าน
+if username_input != user_username or password_input != user_password:
+    print("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง ❌")
+    exit()
+else:
+    print("ยินดีต้อนรับ! ข้อมูลผู้ใช้ถูกต้อง ✅")
+
+# อ่านข้อมูล PRODUCT_DATA จาก .env
+PRODUCT_DATA_JSON = os.getenv("PRODUCT_DATA")
+
 if not PRODUCT_DATA_JSON:
     print("ไม่มีข้อมูล PRODUCT_DATA ใน .env ❌")
     exit()
@@ -21,49 +40,11 @@ except json.JSONDecodeError:
     print("ไม่สามารถแปลงข้อมูล PRODUCT_DATA จาก .env ได้ ❌")
     exit()
 
-# แสดงรายชื่อผู้ใช้ใน .env
-def get_user_credentials():
-    users = []
-    # ดึงข้อมูลจาก .env สำหรับผู้ใช้แต่ละคน
-    user_number = 1
-    while True:
-        api_key = os.getenv(f"API_KEY_USER{user_number}")
-        username = os.getenv(f"USERNAME_USER{user_number}")
-        password = os.getenv(f"PASSWORD_USER{user_number}")
-        
-        if not api_key or not username or not password:
-            break
-        
-        users.append({
-            "api_key": api_key,
-            "username": username,
-            "password": password
-        })
-        user_number += 1
-    return users
-
-# ให้ผู้ใช้เลือก
-def choose_user(users):
-    print("เลือกผู้ใช้:")
-    for idx, user in enumerate(users, start=1):
-        print(f"{idx}. {user['username']}")
-
-    try:
-        user_choice = int(input("กรุณาเลือกหมายเลขผู้ใช้: "))
-        if 1 <= user_choice <= len(users):
-            return users[user_choice - 1]
-        else:
-            print("เลือกผู้ใช้ไม่ถูกต้อง ❌")
-            return None
-    except ValueError:
-        print("โปรดกรอกตัวเลขที่ถูกต้อง ❌")
-        return None
-
 # ฟังก์ชันดึงยอดเงินจาก API
-def get_balance(api_key):
+def get_balance():
     url_balance = API_URL
     data_balance = {
-        "key": api_key,
+        "key": user_api_key,  # ใช้ API Key ของผู้ใช้ที่ล็อกอิน
         "action": "balance"
     }
 
@@ -82,8 +63,14 @@ def get_balance(api_key):
     return None
 
 # เมนูแสดงประเภทสินค้า (Facebook, Tiktok, Instagram)
-def show_category_menu(balance):
-    print(f"\n--- เมนูหลัก --- {' ' * (30 - len(str(balance)))} ยอดเงิน: {balance} บาท 💳")
+def show_category_menu():
+    balance = get_balance()
+
+    if balance is not None:
+        print(f"\n--- เมนูหลัก --- {' ' * (30 - len(str(balance)))} ยอดเงิน: {balance} บาท 💳")
+    else:
+        print("\n--- เมนูหลัก --- ไม่สามารถดึงยอดเงินได้ ❗")
+    
     print("1. Facebook")
     print("2. TikTok")
     print("3. Instagram")
@@ -110,7 +97,6 @@ def choose_product(filtered_products):
         print("กลับไปที่เมนูหลัก 🔙")
         return
 
-    # ตรวจสอบว่าผู้ใช้เลือกสินค้าถูกต้องหรือไม่
     if 1 <= choice <= len(filtered_products):
         product_name = list(filtered_products.keys())[choice - 1]
         product = filtered_products[product_name]
@@ -126,7 +112,6 @@ def choose_product(filtered_products):
         print(f"จำนวนขั้นต่ำ: {min_quantity} | จำนวนสูงสุด: {max_quantity} 🎯")
         print("\n-------------------------\n")  # เส้นแบ่งระหว่างรายละเอียดสินค้า
 
-        # รับข้อมูลจากผู้ใช้
         link = input("กรุณากรอกลิงก์ 🔗 (พิมพ์ 00 เพื่อกลับสู่เมนูหลัก): ")
         if link == "00":
             return
@@ -137,35 +122,28 @@ def choose_product(filtered_products):
 
         quantity = int(quantity)
 
-        # ตรวจสอบจำนวนที่ผู้ใช้กรอกว่าผ่านข้อกำหนดขั้นต่ำและสูงสุดหรือไม่
+        # ตรวจสอบจำนวนที่กรอก
         if quantity < min_quantity or quantity > max_quantity:
             print(f"จำนวนที่กรอกไม่ถูกต้อง กรุณากรอกจำนวนระหว่าง {min_quantity} - {max_quantity} 📉")
             return
 
-        # คำนวณราคาของคำสั่งซื้อ
         total_price = price_per_unit * quantity
-
-        # ดึงยอดเงินจาก API
-        balance = get_balance(api_key)
+        balance = get_balance()
 
         if balance is not None:
             print(f"ยอดเงินของคุณ: {balance} บาท 💳")
-            print("\n-------------------------\n")
-
-            # ตรวจสอบยอดเงินเพียงพอสำหรับการสั่งซื้อหรือไม่
             if balance >= total_price:
                 print(f"ยอดเงินของคุณเพียงพอสำหรับการสั่งซื้อ ราคา: {total_price} บาท ✅")
 
-                # ขั้นตอนยืนยันการสั่งซื้อ
+                # ยืนยันการสั่งซื้อ
                 confirm = input(f"คุณยืนยันที่จะสั่งซื้อ {quantity} ชิ้น ในราคา {total_price} บาทหรือไม่? (y/n): ")
                 if confirm.lower() != 'y':
                     print("ยกเลิกคำสั่งซื้อ ❌")
                     return
 
-                # URL ของ API ที่จะทำการส่งข้อมูลเพิ่มคำสั่งซื้อ
                 url_order = API_URL
                 data_order = {
-                    "key": api_key,
+                    "key": user_api_key,
                     "action": action,
                     "service": service,
                     "link": link,
@@ -189,42 +167,29 @@ def choose_product(filtered_products):
     else:
         print("สินค้าที่เลือกไม่ถูกต้อง ❌")
 
-# รับข้อมูลผู้ใช้จาก .env
-users = get_user_credentials()
+# แสดงเมนูประเภทสินค้า
+while True:
+    show_category_menu()
 
-# ให้ผู้ใช้เลือกบัญชีผู้ใช้
-user = choose_user(users)
-if user:
-    print(f"ยินดีต้อนรับ {user['username']}!")
-    api_key = user['api_key']
+    try:
+        category_choice = int(input("กรุณาเลือกหมวดหมู่สินค้า: "))
 
-    # แสดงเมนูหลักและให้เลือกหมวดหมู่
-    while True:
-        balance = get_balance(api_key)
-        if balance is None:
-            print("ไม่สามารถดึงข้อมูลยอดเงินได้ ❗")
+        if category_choice == 0:
+            print("ออกจากโปรแกรม 👋")
             break
-
-        show_category_menu(balance)
-
-        try:
-            category_choice = int(input("กรุณาเลือกหมวดหมู่สินค้า: "))
-            if category_choice == 0:
-                print("ออกจากโปรแกรม 👋")
-                break
-            elif category_choice == 1:
-                filtered_products = product_data.get("facebook", {})
-                choose_product(filtered_products)
-            elif category_choice == 2:
-                filtered_products = product_data.get("tiktok", {})
-                choose_product(filtered_products)
-            elif category_choice == 3:
-                filtered_products = product_data.get("instagram", {})
-                choose_product(filtered_products)
-            elif category_choice == 4:
-                filtered_products = product_data.get("discord", {})
-                choose_product(filtered_products)
-            else:
-                print("ตัวเลือกไม่ถูกต้อง ❌ กรุณาเลือกใหม่")
-        except ValueError:
-            print("โปรดกรอกตัวเลขที่ถูกต้องสำหรับหมวดหมู่สินค้า ❌")
+        elif category_choice == 1:
+            filtered_products = product_data.get("facebook", {})
+            choose_product(filtered_products)
+        elif category_choice == 2:
+            filtered_products = product_data.get("tiktok", {})
+            choose_product(filtered_products)
+        elif category_choice == 3:
+            filtered_products = product_data.get("instagram", {})
+            choose_product(filtered_products)
+        elif category_choice == 4:
+            filtered_products = product_data.get("discord", {})
+            choose_product(filtered_products)
+        else:
+            print("ตัวเลือกไม่ถูกต้อง ❌")
+    except ValueError:
+        print("กรุณากรอกหมายเลขที่ถูกต้อง ❌")
