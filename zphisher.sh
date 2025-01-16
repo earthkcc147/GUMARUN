@@ -200,3 +200,111 @@ check_status() {
         timeout 3s curl -fIs "https://api.github.com" > /dev/null # ทดสอบการเชื่อมต่ออินเทอร์เน็ต
         [ $? -eq 0 ] && echo -e "${GREEN}Online${WHITE}" && check_update || echo -e "${RED}Offline${WHITE}" # แสดงสถานะว่าออนไลน์หรือออฟไลน์
 }
+
+
+
+## Banner
+# ฟังก์ชัน banner() ใช้สำหรับแสดงแบนเนอร์ใหญ่ โดยแสดงข้อความชื่อโปรแกรมและเวอร์ชัน
+banner() {
+        cat <<- EOF
+                ${ORANGE}
+                ${ORANGE} ______      _     _     _               
+                ${ORANGE}|___  /     | |   (_)   | |              
+                ${ORANGE}   / / _ __ | |__  _ ___| |__   ___ _ __ 
+                ${ORANGE}  / / | '_ \| '_ \| / __| '_ \ / _ \ '__|
+                ${ORANGE} / /__| |_) | | | | \__ \ | | |  __/ |   
+                ${ORANGE}/_____| .__/|_| |_|_|___/_| |_|\___|_|   
+                ${ORANGE}      | |                                
+                ${ORANGE}      |_|                ${RED}Version : ${__version__}
+
+                ${GREEN}[${WHITE}-${GREEN}]${CYAN} Tool Created by htr-tech (tahmid.rayat)${WHITE}
+        EOF
+}
+
+## Small Banner
+# ฟังก์ชัน banner_small() ใช้สำหรับแสดงแบนเนอร์ขนาดเล็ก โดยแสดงชื่อโปรแกรมและเวอร์ชันในรูปแบบย่อ
+banner_small() {
+        cat <<- EOF
+                ${BLUE}
+                ${BLUE}  ░▀▀█░█▀█░█░█░▀█▀░█▀▀░█░█░█▀▀░█▀▄
+                ${BLUE}  ░▄▀░░█▀▀░█▀█░░█░░▀▀█░█▀█░█▀▀░█▀▄
+                ${BLUE}  ░▀▀▀░▀░░░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀${WHITE} ${__version__}
+        EOF
+}
+
+## Dependencies
+# ฟังก์ชัน dependencies() ใช้สำหรับตรวจสอบและติดตั้งแพ็คเกจที่จำเป็นสำหรับการทำงานของโปรแกรม
+dependencies() {
+        echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing required packages..."
+
+        # ตรวจสอบว่ากำลังทำงานใน Termux หรือไม่ และติดตั้งแพ็คเกจที่จำเป็น
+        if [[ -d "/data/data/com.termux/files/home" ]]; then
+                if [[ ! $(command -v proot) ]]; then
+                        echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing package : ${ORANGE}proot${CYAN}"${WHITE}
+                        pkg install proot resolv-conf -y
+                fi
+
+                if [[ ! $(command -v tput) ]]; then
+                        echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing package : ${ORANGE}ncurses-utils${CYAN}"${WHITE}
+                        pkg install ncurses-utils -y
+                fi
+        fi
+
+        # ตรวจสอบว่าแพ็คเกจ php, curl, และ unzip ติดตั้งแล้วหรือยัง ถ้าไม่ติดตั้งอัตโนมัติ
+        if [[ $(command -v php) && $(command -v curl) && $(command -v unzip) ]]; then
+                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${GREEN} Packages already installed."
+        else
+                pkgs=(php curl unzip)
+                for pkg in "${pkgs[@]}"; do
+                        type -p "$pkg" &>/dev/null || {
+                                echo -e "\n${GREEN}[${WHITE}+${GREEN}]${CYAN} Installing package : ${ORANGE}$pkg${CYAN}"${WHITE}
+                                if [[ $(command -v pkg) ]]; then
+                                        pkg install "$pkg" -y
+                                elif [[ $(command -v apt) ]]; then
+                                        sudo apt install "$pkg" -y
+                                elif [[ $(command -v apt-get) ]]; then
+                                        sudo apt-get install "$pkg" -y
+                                elif [[ $(command -v pacman) ]]; then
+                                        sudo pacman -S "$pkg" --noconfirm
+                                elif [[ $(command -v dnf) ]]; then
+                                        sudo dnf -y install "$pkg"
+                                elif [[ $(command -v yum) ]]; then
+                                        sudo yum -y install "$pkg"
+                                else
+                                        echo -e "\n${RED}[${WHITE}!${RED}]${RED} Unsupported package manager, Install packages manually."
+                                        { reset_color; exit 1; }
+                                fi
+                        }
+                done
+        fi
+}
+
+# Download Binaries
+# ฟังก์ชัน download() ใช้สำหรับดาวน์โหลดไฟล์ที่จำเป็นจาก URL ที่กำหนด และย้ายไฟล์ไปยังโฟลเดอร์ .server
+download() {
+        url="$1"
+        output="$2"
+        file=`basename $url`
+        if [[ -e "$file" || -e "$output" ]]; then
+                rm -rf "$file" "$output"
+        fi
+        curl --silent --insecure --fail --retry-connrefused \
+                --retry 3 --retry-delay 2 --location --output "${file}" "${url}"
+
+        if [[ -e "$file" ]]; then
+                if [[ ${file#*.} == "zip" ]]; then
+                        unzip -qq $file > /dev/null 2>&1
+                        mv -f $output .server/$output > /dev/null 2>&1
+                elif [[ ${file#*.} == "tgz" ]]; then
+                        tar -zxf $file > /dev/null 2>&1
+                        mv -f $output .server/$output > /dev/null 2>&1
+                else
+                        mv -f $file .server/$output > /dev/null 2>&1
+                fi
+                chmod +x .server/$output > /dev/null 2>&1
+                rm -rf "$file"
+        else
+                echo -e "\n${RED}[${WHITE}!${RED}]${RED} Error occured while downloading ${output}."
+                { reset_color; exit 1; }
+        fi
+}
