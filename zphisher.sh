@@ -201,10 +201,7 @@ check_status() {
         [ $? -eq 0 ] && echo -e "${GREEN}Online${WHITE}" && check_update || echo -e "${RED}Offline${WHITE}" # แสดงสถานะว่าออนไลน์หรือออฟไลน์
 }
 
-
-
 ## Banner
-# ฟังก์ชัน banner() ใช้สำหรับแสดงแบนเนอร์ใหญ่ โดยแสดงข้อความชื่อโปรแกรมและเวอร์ชัน
 banner() {
         cat <<- EOF
                 ${ORANGE}
@@ -222,7 +219,6 @@ banner() {
 }
 
 ## Small Banner
-# ฟังก์ชัน banner_small() ใช้สำหรับแสดงแบนเนอร์ขนาดเล็ก โดยแสดงชื่อโปรแกรมและเวอร์ชันในรูปแบบย่อ
 banner_small() {
         cat <<- EOF
                 ${BLUE}
@@ -231,6 +227,7 @@ banner_small() {
                 ${BLUE}  ░▀▀▀░▀░░░▀░▀░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀${WHITE} ${__version__}
         EOF
 }
+
 
 ## Dependencies
 # ฟังก์ชัน dependencies() ใช้สำหรับตรวจสอบและติดตั้งแพ็คเกจที่จำเป็นสำหรับการทำงานของโปรแกรม
